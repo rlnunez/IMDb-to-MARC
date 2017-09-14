@@ -10,7 +10,13 @@ IMDbID|OCLC,UPC,$PRICE,1
 
 ### Prerequisites
 
-List off a bunch of PIP commands here...
+* pip install imdbpy
+* pip install pymarc
+* pip install csv
+* pip install unidecode
+* pip install requests
+* pip install lxml
+* pip install rdflib
 
 ## Deployment
 
