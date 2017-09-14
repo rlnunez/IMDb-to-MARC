@@ -19,7 +19,7 @@ IMDbID|OCLC,UPC,$PRICE,1
 * pip install lxml
 * pip install rdflib
 
-## Deployment
+## Development
 
 It's taken a while for the code to get this far. There is still a bit of work that needs to be done to split it into more reasonable and reusable chunks. 
 
