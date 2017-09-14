@@ -10,6 +10,7 @@ IMDbID|OCLC,UPC,$PRICE,1
 
 ### Prerequisites
 
+* Python 2.7.x
 * pip install imdbpy
 * pip install pymarc
 * pip install csv
