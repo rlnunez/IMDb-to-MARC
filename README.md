@@ -24,6 +24,7 @@ Use the videos.txt file to enter the IMDb ID (REQ), OCLC ID (OPT), UPC (REC), PR
 
 * Commandline support
 * Better batch generation support (read CSV file with headings)
+* Integrate with LC Subject Headings and Name Authority
 * GUI
 * Boatloads of code cleanup
 
