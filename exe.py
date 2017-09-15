@@ -9,12 +9,11 @@ import sys
 from wcrecord import OCLCScraper
 from marc_lang import lanugage_lookup
 
-version = '1.6.0'
-OCLCSymble = ''
+version = '1.6.2'
+OCLCSymble = 'WIK'
 today = datetime.date.today()
-time = time.time()
 #create filename var
-FILENAMEVAR = 'IMDB-' + str(time) + '.mrc'
+FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'
 
 def invert_name(data):
     name_list = data['name'].split()
@@ -43,67 +42,47 @@ def rating_fix(data):
     return rating
 
 def rating_text(data, worldcat):
+    map_rate = {'text': 'MPAA rating: Not Rated', 'audiance' : ' '}
+    
     rating = str(data).upper()
-    rating_text = 'MPAA rating: Not Rated'
     if rating == 'G':
-        rating_text = 'MPAA rating: G (General Audiences); Nothing that would offend parents for viewing by children.'
+        map_rate['text'] = 'MPAA rating: G (General Audiences); Nothing that would offend parents for viewing by children.'
+        map_rate['audiance'] = 'g'
     elif rating == 'PG':
-        rating_text = 'MPAA rating: PG (Parental Guidance Suggested); Parents urged to give "parental guidance". May contain some material parents might not like for their young children.'
+        map_rate['text'] = 'MPAA rating: PG (Parental Guidance Suggested); Parents urged to give "parental guidance". May contain some material parents might not like for their young children.'
+        map_rate['audiance'] = 'g'
     elif rating == 'PG-13':
-        rating_text = 'MPAA rating: PG-13 (Parents Strongly Cautioned); Parents are urged to be cautious. Some material may be inappropriate for pre-teenagers.'
+        map_rate['text'] = 'MPAA rating: PG-13 (Parents Strongly Cautioned); Parents are urged to be cautious. Some material may be inappropriate for pre-teenagers.'
+        map_rate['audiance'] = 'd'
     elif rating == 'R':
-        rating_text = "MPAA rating: R (Restricted); Contains some adult material. Parents are urged to learn more about the film before taking their young children with them."
+        map_rate['text'] = "MPAA rating: R (Restricted); Contains some adult material. Parents are urged to learn more about the film before taking their young children with them."
+        map_rate['audiance'] = 'e'
     elif rating == 'NC-17':
-        rating_text = "MPAA rating: NC-17 (Adults Only); Should not be viewed by anyone under 17"
+        map_rate['text'] = "MPAA rating: NC-17 (Adults Only); Should not be viewed by anyone under 17"
+        map_rate['audiance'] = 'e'
 
-    if worldcat['contentRating'] != '':
-        if 'TV' in worldcat['contentRating']:
-            wcrating = worldcat['contentRating'].lower().replace('TV', '').replace(':', '').replace('.', '')
-            if wcrating == 'y':
-                rating_text = 'This program is designed to be appropriate for all children'
-            if wcrating == 'y7':
-                rating_text = 'This program is designed for children age 7 and above.'
-            if wcrating == 'g':
-                rating_text = 'Most parents would find this program suitable for all ages.'
-            if wcrating == 'pg':
-                rating_text = 'This program contains material that parents may find unsuitable for younger children.'
-            if wcrating == '14':
-                rating_text = 'This program contains some material that many parents would find unsuitable for children under 14 years of age.'
-            if wcrating == 'ma':
-                rating_text = 'This program is specifically designed to be viewed by adults and therefore may be unsuitable for children under 17.'
-                
-    return rating_text
+    if 'TV' in worldcat['contentRating']:
+        wcrating = worldcat['contentRating'].lower().replace('tv', '').replace(':', '').replace('.', '')
+        if 'y' in wcrating:
+            map_rate['text'] = 'This program is designed to be appropriate for all children'
+            map_rate['audiance'] = 'g'
+        if 'y7' in wcrating:
+            map_rate['text'] = 'This program is designed for children age 7 and above.'
+            map_rate['audiance'] = 'g'
+        if 'g' in wcrating:
+            map_rate['text'] = 'Most parents would find this program suitable for all ages.'
+            map_rate['audiance'] = 'g'
+        if 'pg' in wcrating:
+            map_rate['text'] = 'This program contains material that parents may find unsuitable for younger children.'
+            map_rate['audiance'] = 'g'
+        if '14' in wcrating:
+            map_rate['text'] = 'This program contains some material that many parents would find unsuitable for children under 14 years of age.'
+            map_rate['audiance'] = 'd'
+        if 'ma' in wcrating:
+            map_rate['text'] = 'This program is specifically designed to be viewed by adults and therefore may be unsuitable for children under 17.'
+            map_rate['audiance'] = 'e'
 
-def audiance_rating(data, worldcat):
-    rating = str(data).upper()
-    rating_text = ' '
-    if rating == 'G':
-        rating_text = 'g'
-    elif rating == 'PG':
-        rating_text = 'g'
-    elif rating == 'PG-13':
-        rating_text = 'd'
-    elif rating == 'R':
-        rating_text = 'e'
-    elif rating == 'NC-17':
-        rating_text = 'e'
-
-    if worldcat['contentRating'] != '':
-        if 'TV' in worldcat['contentRating']:
-            wcrating = worldcat['contentRating'].lower().replace('TV', '').replace(':', '').replace('.', '')
-            if wcrating == 'y':
-                rating_text = 'g'
-            if wcrating == 'y7':
-                rating_text = 'g'
-            if wcrating == 'g':
-                rating_text = 'g'
-            if wcrating == 'pg':
-                rating_text = 'd'
-            if wcrating == '14':
-                rating_text = 'd'
-            if wcrating == 'ma':
-                rating_text = 'e'
-    return rating_text
+    return map_rate
 
 def main_title(data):
     main = data.split(':')
@@ -225,7 +204,7 @@ def set_008(date, pubyear, runTime, audiance, worldcatRecord):
     LIST008[36] = 'n'
     LIST008[37] = 'g'
     if len(worldcatRecord['language']) > 0:
-        lang = lanugage_lookup(worldcatRecord['language'][0]).split()
+        lang = lanugage_lookup(worldcatRecord['language'][0])
         LIST008[35] = lang[0]
         LIST008[36] = lang[1]
         LIST008[37] = lang[2]
@@ -273,10 +252,7 @@ def vid_list(data):
 	    'OCLC': '',
 	    'UPC' : '',
 	    'Price' : '$39.99',
-	    'Season' : 1,
-	    '007' : 'vd cvaizq',
-	    'GMD' : '[videorecording (DVD)]',
-	    'Item Type' : 'DVD'}
+	    'Season' : 1}
     
     vid['IMDB'] = data[0]
     vid['UPC'] = data[1]
@@ -311,13 +287,6 @@ def get_runtime(IMDBvid, se):
 
     return vRuntime
 
-def vid_update(vid, wcr):
-    if 'Blu' in  wcr['itemType']:
-        vid['007'] = "vd csaizq"
-        vid['GMD'] = "[videorecording (Blu-Ray)]"
-        vid['Item Type'] = 'Blu-ray disc'
-    return vid
-
 with open("videos.txt") as f:
     reader = csv.reader(f)
     video_list = list(reader)
@@ -330,44 +299,40 @@ for video in video_list:
     record = Record()
     IMDBinfo = IMDb()
     worldcatRecord = OCLCScraper(video_info['OCLC'])
-    video_info = vid_update(video_info,worldcatRecord)
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
     if str(IMDBvid['kind']) == 'tv series':
         IMDBinfo.update(IMDBvid, 'episodes')
     vRuntime = get_runtime(IMDBvid,video_info['Season'])
-    vMPAA = find_mpaa(IMDBvid)
+    ratingGuide = rating_text(find_mpaa(IMDBvid), worldcatRecord)
 
     #001
     record.add_ordered_field(Field(tag = '001',data = "u"+ video_info['UPC']))
     #007
-    record.add_ordered_field(Field(tag = '007',data = video_info['007']))
+    record.add_ordered_field(Field(tag = '007',data = worldcatRecord['007']))
     #008
-    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vRuntime, audiance_rating(vMPAA,worldcatRecord), worldcatRecord)))
+    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vRuntime, ratingGuide['audiance'], worldcatRecord)))
     #020 - Price and ISBN info
     record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['c', video_info['Price'] ]))
     if hasattr(worldcatRecord, 'isbn'):
         if len(worldcatRecord['isbn']) > 0:
             for isbn in worldcatRecord['isbn']:
                 record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['a', isbn ]))
-    #024 - UPC and IMDB ID
+    #024 - UPC
     record.add_ordered_field(Field(tag = '024',indicators = ['1',' '],subfields = ['a', video_info['UPC'] ]))
-    record.add_ordered_field(Field(tag = '024',indicators = ['7',' '],subfields = ['a', 'tt' + IMDBvid.movieID, '2', 'IMDb ID' ]))
-    #035 - OCLC Number if it exists
+    #035 - OCLC Number if it exists and the IMDb ID
+    record.add_ordered_field(Field(tag = '024',indicators = [' ',' '],subfields = ['a', '(IMDb)tt' + IMDBvid.movieID ]))
     if video_info['OCLC'] != '':
-        record.add_ordered_field(Field(tag = '035',indicators = [' ',' '],subfields = ['a', '(OCoLC)' + video_info['OCLC']]))
+        record.add_ordered_field(Field(tag = '035',indicators = [' ',' '],subfields = ['z', '(OCoLC)' + video_info['OCLC']]))
     #040 - Original Cataloging Information (KPL)
     record.add_ordered_field(Field(tag = '040',indicators = [' ',' '],subfields = ['a', OCLCSymble ,'b', lanugage_lookup(worldcatRecord['language'][0]) ,'c', OCLCSymble , 'e', 'rda' ]))
     #082 - Dewey number from worldcat 
-    if len(worldcatRecord['subjects']) > 0:
-        for dewey in worldcatRecord['subjects']:
-            if 'dewey' in dewey:
-                dewey = unidecode.unidecode(dewey).replace('http://dewey.info/class/', '').split('/')
-                record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', dewey[0],'b',dewey[1]]))
+    if len(worldcatRecord['dewey']) > 0:
+        record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', worldcatRecord['dewey']]))
     #245 - Main Title Info
     if sub_title(IMDBvid['title']) != '':
-        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', video_info['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
+        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', worldcatRecord['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
     else:
-        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']), 'h', video_info['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
+        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']), 'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
     #246 - Other names for the title
     if len(worldcatRecord['alternateName']) > 0:
         for altname in worldcatRecord['alternateName']:
@@ -375,7 +340,7 @@ for video in video_list:
     #264 - Production information from Worldcat
     record.add_ordered_field(Field(tag = '264',indicators = [' ','0'],subfields = set_264(worldcatRecord, str(IMDBvid['year']))))
     #300
-    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', '1 ' + video_info['Item Type'] + ' (' + str(vRuntime) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
+    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['discs']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vRuntime) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
     #336
     record.add_ordered_field(Field(tag = '336',indicators = [' ',' '],subfields = ['a', 'two-dimensional moving image','2', 'rdacontent']))
     #337
@@ -394,7 +359,7 @@ for video in video_list:
             record.add_ordered_field(Field(tag = '490',indicators = ['0',' '],subfields = ['a', series]))
     #500 - General Notes from Worldcat and IMDb top 250 info
     if len(worldcatRecord['generalNotes']) > 0:
-        for gennote in worldcatRecord['generalNotes'][0]:
+        for gennote in worldcatRecord['generalNotes']:
             record.add_ordered_field(Field(tag = '500',indicators = [' ',' '],subfields = ['a', gennote]))
     if 'top 250 rank' in IMDBvid:
         record.add_ordered_field(Field(tag = '500',indicators = [' ',' '],subfields = ['a', 'IMDb Top 250 Movies Ranking: ' + str(IMDBvid['top 250 rank'])]))
@@ -451,7 +416,7 @@ for video in video_list:
     if 'rating' in IMDBvid:
         record.add_ordered_field(Field(tag = '520',indicators = ['1',' '],subfields = ['a', 'IMDb Rating: ' + str(IMDBvid['rating']) + '/10']))
     #521 MPAA Rating
-    record.add_ordered_field(Field(tag = '521',indicators = ['8',' '],subfields = ['a', rating_text(vMPAA, worldcatRecord)]))
+    record.add_ordered_field(Field(tag = '521',indicators = ['8',' '],subfields = ['a', ratingGuide['text']]))
     #538 - Technical Notes
     if len(worldcatRecord['technical']) > 0:
         record.add_ordered_field(Field(tag = '538',indicators = [' ',' '],subfields = ['a', worldcatRecord['technical']]))
@@ -476,8 +441,7 @@ for video in video_list:
                 record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', g + ' films.']))
     if len(worldcatRecord['subjects']) > 0:
         for sh in worldcatRecord['subjects']:
-            if 'dewey' not in sh:
-                record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', sh]))
+            record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', sh]))
     #856 - Artwork and IMDb Links
     record.add_ordered_field(Field(tag = '856',indicators = ['4',' '],subfields = ['u', IMDBvid['full-size cover url'], 'y', 'Artwork of ' + unidecode.unidecode(IMDBvid['title'])]))
     record.add_ordered_field(Field(tag = '856',indicators = ['4',' '],subfields = ['u', 'http://www.imdb.com/title/tt' + IMDBvid.movieID, 'y', 'IMDb Link']))

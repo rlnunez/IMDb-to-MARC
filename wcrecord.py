@@ -31,7 +31,7 @@ def OCLCScraper(OCLCNum):
                       'placeOfPublication' : '',
                       'publisher' : '',
                       'yearPublished' : '',
-                      'itemType' : '',
+                      'itemType' : 'DVD',
                       'summery' : '',
                       'genre' : '',
                       'languageNotes' : '',
@@ -46,7 +46,11 @@ def OCLCScraper(OCLCNum):
                       'materialType' : '',
                       'alternateName' : '',
                       'awards' : '',
-                      'series' : ''}
+                      'series' : '',
+                      'dewey' : '',
+                      'discs' : 1,
+                      '007' : 'vd cvaizq',
+                      'GMD' : '[videorecording (DVD)]'}
     if OCLCNum == '':
       return worldcatRecord
     worldcatRecord['OCLCNumber'] = OCLCNum
@@ -71,6 +75,14 @@ def OCLCScraper(OCLCNum):
     worldcatRecord['awards'] = getBibframe(OCLCNum,'awards')
     worldcatRecord['series'] = getBibframe(OCLCNum,'isPartOf')
 
+    #Remove dewey number from subjects if it exists
+    if len(worldcatRecord['subjects']) > 0:
+        for dewey in worldcatRecord['subjects']:
+            if 'dewey' in dewey:
+                worldcatRecord['dewey'] = unidecode.unidecode(dewey).replace('http://dewey.info/class/', '').replace('/', ' ').strip()
+                worldcatRecord['subjects'].remove(dewey)
+
+    #screen scrapping information not in Bibframe
     datailsTable = tree.xpath('//div[@id="details"]//table//tr')
     for rows in datailsTable:
         if rows.xpath('th/text()')[0][:-1].lower() == 'language note':
@@ -81,13 +93,28 @@ def OCLCScraper(OCLCNum):
             worldcatRecord['technical'] = rows.xpath('td/text()')[0]
         elif rows.xpath('th/text()')[0][:-1].lower() == 'material type':
             worldcatRecord['materialType'] = rows.xpath('td/text()')[0]
+        elif rows.xpath('th/text()')[0][:-1].lower() == 'description':
+            worldcatRecord['discs'] = int(rows.xpath('td/text()')[0].split()[0])
+
+    if 'DVD' in worldcatRecord['itemType']:
+        worldcatRecord['itemType'] = 'DVD'
+        if worldcatRecord['discs'] > 1:
+            worldcatRecord['itemType'] = 'DVDs'
+    elif 'Bluray' in worldcatRecord['itemType']:
+        worldcatRecord['itemType'] = 'Blu-ray disc'
+        worldcatRecord['007'] = 'vd csaizq'
+        worldcatRecord['GMD'] = '[videorecording (Blu-Ray)]'
+        if worldcatRecord['discs'] > 1:
+            worldcatRecord['itemType'] = 'Blu-ray discs'
+
     
     return worldcatRecord
 
 def htmlbr_tolist(data):
     pushlist = []
-    pushlist.append(data.xpath('text()'))
+    pushlist.append(data.xpath('text()')[0])
     temp = data.xpath('//br/text()')
-    for push in temp:
-        pushlist.append(push)
+    if len(temp) > 0:
+        for push in temp:
+            pushlist.append(push[0])
     return pushlist
