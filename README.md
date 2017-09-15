@@ -23,6 +23,7 @@ Use the videos.txt file to enter the IMDb ID (REQ), OCLC ID (OPT), UPC (REC), PR
 ## Development TODO
 
 * Commandline support
+* Better batch generation support (read CSV file with headings)
 * GUI
 * Boatloads of code cleanup
 
