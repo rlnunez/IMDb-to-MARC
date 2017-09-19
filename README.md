@@ -4,10 +4,27 @@ This is a python script that will convert IMDb information in to a MARC file. If
 
 ## Getting Started
 
-Use the videos.txt file to enter the IMDb ID (REQ), OCLC ID (OPT), UPC (REC), PRICE (OPT), and TV Season (OPT). The format should be:
+Call the script using command line arguments: 
 
-1) IMDbID|OCLC,UPC,$PRICE,1
-2) Run exe.py
+Command | Description | Required
+------------ | ------------- | -------------
+-f or --File | Path to the CSV file | Required if not provided with an IMDb ID and UPC
+-o or --OCLC | OCLC Number | 
+-i or --IMDB | IMDB ID | Required if --file or -f is not provided
+-u or --UPC | Item's UPC | Required if --file or -f is not provided
+-p or --Price | Item's Price | 
+-s or --Season | The season number (if a TV Show is given) [default: 1] | 
+-q or --Quiet | Will suppress the script's output | 
+
+### CSV File format:
+**Note:** Heading order does not matter
+
+OCLC | IMDB | Price | UPC | Season
+------------ | ------------- | ------------- | ------------- | -------------
+988741899 | tt5897948 | $19.99 | 888295556514 | 
+988741899 | 5897948 |  | 888295556514 | 
+
+
 
 ### Prerequisites
 
@@ -19,14 +36,15 @@ Use the videos.txt file to enter the IMDb ID (REQ), OCLC ID (OPT), UPC (REC), PR
 * pip install requests
 * pip install lxml
 * pip install rdflib
+* pip install argparse
 
 ## Development TODO
 
-* Commandline support
-* Better batch generation support (read CSV file with headings)
-* Integrate with LC Subject Headings and Name Authority
-* GUI
-* Boatloads of code cleanup
+- [x] Commandline support
+- [x] Better batch generation support (read CSV file with headings)
+- [ ] Integrate with LC Subject Headings and Name Authority
+- [ ] GUI
+- [ ] Boatloads of code cleanup
 
 ## Contributing
 
