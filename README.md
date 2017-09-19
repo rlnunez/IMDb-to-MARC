@@ -6,7 +6,8 @@ This is a python script that will convert IMDb information in to a MARC file. If
 
 Use the videos.txt file to enter the IMDb ID (REQ), OCLC ID (OPT), UPC (REC), PRICE (OPT), and TV Season (OPT). The format should be:
 
-IMDbID|OCLC,UPC,$PRICE,1
+1) IMDbID|OCLC,UPC,$PRICE,1
+2) Run exe.py
 
 ### Prerequisites
 
@@ -19,13 +20,17 @@ IMDbID|OCLC,UPC,$PRICE,1
 * pip install lxml
 * pip install rdflib
 
-## Development
+## Development TODO
 
-It's taken a while for the code to get this far. There is still a bit of work that needs to be done to split it into more reasonable and reusable chunks. 
+* Commandline support
+* Better batch generation support (read CSV file with headings)
+* Integrate with LC Subject Headings and Name Authority
+* GUI
+* Boatloads of code cleanup
 
 ## Contributing
 
-Looking for people to help improve the code when possible
+Looking for people to help improve the code when possible.
 
 
 ## Authors
