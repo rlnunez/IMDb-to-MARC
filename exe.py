@@ -6,14 +6,12 @@ import time
 import string
 import unidecode
 import sys
+import argparse
 from wcrecord import OCLCScraper
 from marc_lang import lanugage_lookup
-
-version = '1.6.2'
-OCLCSymble = 'WIK'
 today = datetime.date.today()
 #create filename var
-FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'
+
 
 def invert_name(data):
     name_list = data['name'].split()
@@ -204,7 +202,7 @@ def set_008(date, pubyear, runTime, audiance, worldcatRecord):
     LIST008[36] = 'n'
     LIST008[37] = 'g'
     if len(worldcatRecord['language']) > 0:
-        lang = lanugage_lookup(worldcatRecord['language'][0])
+        lang = lanugage_lookup(worldcatRecord['language'])
         LIST008[35] = lang[0]
         LIST008[36] = lang[1]
         LIST008[37] = lang[2]
@@ -247,24 +245,6 @@ def format_505(epi):
 
     return v505
 
-def vid_list(data):
-    vid = {'IMDB': '',
-	    'OCLC': '',
-	    'UPC' : '',
-	    'Price' : '$39.99',
-	    'Season' : 1}
-    
-    vid['IMDB'] = data[0]
-    vid['UPC'] = data[1]
-    if len(data) == 3:
-        vid['Price'] = data[2]
-    if len(data) == 4:
-        vid['Season'] = int(data[3])
-    if '|' in data[0]:
-        temp = data[0].split('|')
-        vid['IMDB'] = temp[0]
-        vid['OCLC'] = temp[1]
-    return vid
 
 def get_plot(IMDBvid, worldcatRecord):
     vPlot = ''
@@ -287,24 +267,12 @@ def get_runtime(IMDBvid, se):
 
     return vRuntime
 
-with open("videos.txt") as f:
-    reader = csv.reader(f)
-    video_list = list(reader)
-
-
-for video in video_list:
-    video_info = vid_list(video)
-    print video_info['IMDB']
-    #Set Variables
+def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILENAMEVAR):
     record = Record()
-    IMDBinfo = IMDb()
-    worldcatRecord = OCLCScraper(video_info['OCLC'])
-    IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
-    if str(IMDBvid['kind']) == 'tv series':
-        IMDBinfo.update(IMDBvid, 'episodes')
+    if video_info['Quiet'] == False:
+        print video_info['IMDB']
     vRuntime = get_runtime(IMDBvid,video_info['Season'])
     ratingGuide = rating_text(find_mpaa(IMDBvid), worldcatRecord)
-
     #001
     record.add_ordered_field(Field(tag = '001',data = "u"+ video_info['UPC']))
     #007
@@ -320,11 +288,11 @@ for video in video_list:
     #024 - UPC
     record.add_ordered_field(Field(tag = '024',indicators = ['1',' '],subfields = ['a', video_info['UPC'] ]))
     #035 - OCLC Number if it exists and the IMDb ID
-    record.add_ordered_field(Field(tag = '024',indicators = [' ',' '],subfields = ['a', '(IMDb)tt' + IMDBvid.movieID ]))
+    record.add_ordered_field(Field(tag = '035',indicators = [' ',' '],subfields = ['a', '(IMDb)tt' + IMDBvid.movieID ]))
     if video_info['OCLC'] != '':
         record.add_ordered_field(Field(tag = '035',indicators = [' ',' '],subfields = ['z', '(OCoLC)' + video_info['OCLC']]))
     #040 - Original Cataloging Information (KPL)
-    record.add_ordered_field(Field(tag = '040',indicators = [' ',' '],subfields = ['a', OCLCSymble ,'b', lanugage_lookup(worldcatRecord['language'][0]) ,'c', OCLCSymble , 'e', 'rda' ]))
+    record.add_ordered_field(Field(tag = '040',indicators = [' ',' '],subfields = ['a', OCLCSymble ,'b', lanugage_lookup(worldcatRecord['language']) ,'c', OCLCSymble , 'e', 'rda' ]))
     #082 - Dewey number from worldcat 
     if len(worldcatRecord['dewey']) > 0:
         record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', worldcatRecord['dewey']]))
@@ -340,7 +308,7 @@ for video in video_list:
     #264 - Production information from Worldcat
     record.add_ordered_field(Field(tag = '264',indicators = [' ','0'],subfields = set_264(worldcatRecord, str(IMDBvid['year']))))
     #300
-    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['discs']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vRuntime) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
+    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vRuntime) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
     #336
     record.add_ordered_field(Field(tag = '336',indicators = [' ',' '],subfields = ['a', 'two-dimensional moving image','2', 'rdacontent']))
     #337
@@ -455,7 +423,57 @@ for video in video_list:
     l[17] = '1'
     l[18] = 'i'
     record.leader = "".join(l)
-    #print record #for troubleshooting
+    if video_info['Quiet'] == False:
+        print record
     MARCFile = open(FILENAMEVAR, 'a')
     MARCFile.write(record.as_marc())
     MARCFile.close()
+
+def csv_parser(file_path):
+    with open(file_path, "rb" ) as theFile:
+        reader = csv.DictReader(theFile, delimiter=',')
+        for video_info in reader:
+            if video_info['Season'] == '':
+                video_info['Season'] = 1
+            get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], False)        
+
+def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET):
+    IMDBinfo = IMDb()
+    version = '1.6.2'
+    OCLCSymble = 'WIK'
+    FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'
+    
+    if SEASON == '':
+        SEASON == 1
+    video_info = {}
+    video_info['OCLC'] = OCLC
+    video_info['IMDB'] = IMDB.replace('tt', '')
+    video_info['UPC'] = UPC
+    video_info['Price'] = PRICE
+    video_info['Season'] = SEASON
+    video_info['Quiet'] = QUIET
+    worldcatRecord = OCLCScraper(video_info['OCLC'])
+    IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
+    if str(IMDBvid['kind']) == 'tv series':
+        IMDBinfo.update(IMDBvid, 'episodes')
+
+    create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILENAMEVAR)
+
+if __name__== "__main__":
+    #commandline arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--File', dest='file_path', default='', action='store', help='Location of the CSV file (for batch processing) {Required if other arguments are not provided}')
+    parser.add_argument('-o', '--OCLC', dest='oclc_num', default='', action='store', help='OCLC Number')
+    parser.add_argument('-i', '--IMDB', dest='imdb_id', default='', action='store', help='IMDB ID {Required if --file is not provided}')
+    parser.add_argument('-u', '--UPC', dest='upc', default='', action='store', help="Item's UPC {Required if --file is not provided}")
+    parser.add_argument('-p', '--Price', dest='price', default='', action='store', help="Item's Price")
+    parser.add_argument('-s', '--Season', dest='season', action='store', type=int, default=1, help="The season number (if a TV Show is given) [default: 1]")
+    parser.add_argument('-q', '--Quiet', dest='quiet', action='store_true', default=False, help="Will suppress the script's output")
+    args = parser.parse_args()
+    if args.file_path != '':
+        csv_parser(args.file_path)
+    elif args.imdb_id != '' or args.upc != '':
+        get_info(args.oclc_num, args.imdb_id, args.upc, args.price, args.season, args.quiet)
+    else:
+        parser.print_help()
+  

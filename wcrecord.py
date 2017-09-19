@@ -48,9 +48,10 @@ def OCLCScraper(OCLCNum):
                       'awards' : '',
                       'series' : '',
                       'dewey' : '',
-                      'discs' : 1,
+                      'count' : 1,
                       '007' : 'vd cvaizq',
-                      'GMD' : '[videorecording (DVD)]'}
+                      'GMD' : '[videorecording (DVD)]',
+                      'responsibility' : ''}
     if OCLCNum == '':
       return worldcatRecord
     worldcatRecord['OCLCNumber'] = OCLCNum
@@ -79,7 +80,7 @@ def OCLCScraper(OCLCNum):
     if len(worldcatRecord['subjects']) > 0:
         for dewey in worldcatRecord['subjects']:
             if 'dewey' in dewey:
-                worldcatRecord['dewey'] = unidecode.unidecode(dewey).replace('http://dewey.info/class/', '').replace('/', ' ').strip()
+                worldcatRecord['dewey'] = dewey.replace('http://dewey.info/class/', '').replace('/', ' ').strip()
                 worldcatRecord['subjects'].remove(dewey)
 
     #screen scrapping information not in Bibframe
@@ -94,17 +95,19 @@ def OCLCScraper(OCLCNum):
         elif rows.xpath('th/text()')[0][:-1].lower() == 'material type':
             worldcatRecord['materialType'] = rows.xpath('td/text()')[0]
         elif rows.xpath('th/text()')[0][:-1].lower() == 'description':
-            worldcatRecord['discs'] = int(rows.xpath('td/text()')[0].split()[0])
+            worldcatRecord['count'] = int(rows.xpath('td/text()')[0].split()[0])
+        elif rows.xpath('th/text()')[0][:-1].lower() == 'responsibility':
+            worldcatRecord['responsibility'] = rows.xpath('td/text()')[0]
 
     if 'DVD' in worldcatRecord['itemType']:
         worldcatRecord['itemType'] = 'DVD'
-        if worldcatRecord['discs'] > 1:
+        if worldcatRecord['count'] > 1:
             worldcatRecord['itemType'] = 'DVDs'
     elif 'Bluray' in worldcatRecord['itemType']:
         worldcatRecord['itemType'] = 'Blu-ray disc'
         worldcatRecord['007'] = 'vd csaizq'
         worldcatRecord['GMD'] = '[videorecording (Blu-Ray)]'
-        if worldcatRecord['discs'] > 1:
+        if worldcatRecord['count'] > 1:
             worldcatRecord['itemType'] = 'Blu-ray discs'
 
     
