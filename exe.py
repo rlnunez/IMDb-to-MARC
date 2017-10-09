@@ -7,11 +7,9 @@ import string
 import unidecode
 import sys
 import argparse
+import inflect
 from wcrecord import OCLCScraper
 from marc_lang import lanugage_lookup
-today = datetime.date.today()
-#create filename var
-
 
 def invert_name(data):
     name_list = data['name'].split()
@@ -25,58 +23,58 @@ def invert_name(data):
 
 def find_mpaa(data):
     vMPAA = ''
-    if 'certificates' in data:
-        vMPAA = data['certificates']
-        for MPAA in vMPAA:
+    if data.get('certificates') != None:
+        for MPAA in data['certificates']:
             if 'USA:' in MPAA:
                 vMPAA = str(MPAA)
                 break
-    return rating_fix(vMPAA)
-
-def rating_fix(data):
-    rating = str(data).upper()
-    rating = rating[4:]
-    rating = rating.split('::', 1)[0]
-    return rating
+    return vMPAA.lower()
 
 def rating_text(data, worldcat):
-    map_rate = {'text': 'MPAA rating: Not Rated', 'audiance' : ' '}
+    map_rate = {'text': 'Not Rated', 'audiance' : ' '}
     
-    rating = str(data).upper()
-    if rating == 'G':
+    if data.find('g') != -1:
         map_rate['text'] = 'MPAA rating: G (General Audiences); Nothing that would offend parents for viewing by children.'
         map_rate['audiance'] = 'g'
-    elif rating == 'PG':
+    elif data.find('pg') != -1:
         map_rate['text'] = 'MPAA rating: PG (Parental Guidance Suggested); Parents urged to give "parental guidance". May contain some material parents might not like for their young children.'
         map_rate['audiance'] = 'g'
-    elif rating == 'PG-13':
+    elif data.find('pg-13') != -1:
         map_rate['text'] = 'MPAA rating: PG-13 (Parents Strongly Cautioned); Parents are urged to be cautious. Some material may be inappropriate for pre-teenagers.'
         map_rate['audiance'] = 'd'
-    elif rating == 'R':
+    elif data.find('r') != -1:
         map_rate['text'] = "MPAA rating: R (Restricted); Contains some adult material. Parents are urged to learn more about the film before taking their young children with them."
         map_rate['audiance'] = 'e'
-    elif rating == 'NC-17':
+    elif data.find('nc-17') != -1:
         map_rate['text'] = "MPAA rating: NC-17 (Adults Only); Should not be viewed by anyone under 17"
         map_rate['audiance'] = 'e'
 
-    if 'TV' in worldcat['contentRating']:
-        wcrating = worldcat['contentRating'].lower().replace('tv', '').replace(':', '').replace('.', '')
-        if 'y' in wcrating:
+    wcRating = ''
+    if data.find('tv'):
+        wcRating = data
+    
+    else:
+        for rating in worldcat['contentRating']:
+            if rating.find('TV') or rating.find('tv'):
+                wcRating = rating.lower()
+
+    if wcRating != '':
+        if wcRating.find('y') != -1:
             map_rate['text'] = 'This program is designed to be appropriate for all children'
             map_rate['audiance'] = 'g'
-        if 'y7' in wcrating:
+        if wcRating.find('y7') != -1:
             map_rate['text'] = 'This program is designed for children age 7 and above.'
             map_rate['audiance'] = 'g'
-        if 'g' in wcrating:
+        if wcRating.find('g') != -1:
             map_rate['text'] = 'Most parents would find this program suitable for all ages.'
             map_rate['audiance'] = 'g'
-        if 'pg' in wcrating:
+        if wcRating.find('pg') != -1:
             map_rate['text'] = 'This program contains material that parents may find unsuitable for younger children.'
             map_rate['audiance'] = 'g'
-        if '14' in wcrating:
+        if wcRating.find('17') != -1:
             map_rate['text'] = 'This program contains some material that many parents would find unsuitable for children under 14 years of age.'
             map_rate['audiance'] = 'd'
-        if 'ma' in wcrating:
+        if wcRating.find('ma') != -1:
             map_rate['text'] = 'This program is specifically designed to be viewed by adults and therefore may be unsuitable for children under 17.'
             map_rate['audiance'] = 'e'
 
@@ -125,16 +123,16 @@ def MARC245_c(IMDBvid):
     write = "written by "
     direct = "directed by "
     fin = ''
-
-    if 'producer' in IMDBvid:
-        for pp in producer:
+    
+    if IMDBvid.get('producer') != None:
+        for pp in IMDBvid['producer']:
             prod = prod + pp['name'] + ", "
         prod = prod[:-2]
         prod = prod.strip()
         fin = prod
         
-    if 'writer' in IMDBvid:
-        for ww in writer:
+    if IMDBvid.get('writer') != None:
+        for ww in IMDBvid['writer']:
             write = write + ww['name'] + ", "
         write = write[:-2]
         write = write.strip()
@@ -143,8 +141,8 @@ def MARC245_c(IMDBvid):
         else:
             fin = write
             
-    if 'writer' in IMDBvid:
-        for dd in director:
+    if IMDBvid.get('director') != None:
+        for dd in IMDBvid['director']:
             direct = direct + dd['name'] + ", "
         direct = direct[:-2]
         direct = direct.strip()
@@ -256,35 +254,56 @@ def get_plot(IMDBvid, worldcatRecord):
     return vPlot
 
 def get_runtime(IMDBvid, se):
-    vRuntime = '   '
-    if hasattr(IMDBvid, 'runtimes'):
+    vTime = {}
+    vTime['RunTime'] = '   '
+    vTime['HumanTime'] = ''
+    if IMDBvid.get('runtimes') != None:
         if isinstance(IMDBvid['runtimes'],list):
             IMDBvid['runtimes'] = IMDBvid['runtimes'][0]
-        vRuntime = string_cleanup(IMDBvid['runtimes'])
+            IMDBvid['runtimes'] = IMDBvid['runtimes'].split('::')[0]
+        vTime['RunTime'] = string_cleanup(IMDBvid['runtimes'])
     
     if IMDBvid['kind'] == 'tv series':
-    	vRuntime = len(IMDBvid['episodes'][se]) * 25
+        if len(IMDBvid['runtimes']) > 0:
+            vTime['RunTime'] = len(IMDBvid['episodes'][se]) * int(IMDBvid['runtimes'])
+        else:
+            vTime['RunTime'] = len(IMDBvid['episodes'][se]) * 25
 
-    return vRuntime
+    vTime['HumanTime'] = vTime['RunTime']
+    if len(str(vTime['RunTime'])) > 3:
+        vTime['RunTime'] = '999'
+
+    return vTime
 
 def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILENAMEVAR):
+    today = datetime.date.today()
     record = Record()
-    if video_info['Quiet'] == False:
-        print video_info['IMDB']
-    vRuntime = get_runtime(IMDBvid,video_info['Season'])
+    vTime = get_runtime(IMDBvid,video_info['Season'])
     ratingGuide = rating_text(find_mpaa(IMDBvid), worldcatRecord)
+
+    if isinstance(worldcatRecord['language'], list):
+        worldcatRecord['language'] = worldcatRecord['language'][0]
+    
+    if video_info['Quiet'] == False or video_info['Troubleshoot'] == True:
+        print video_info['IMDB']
+
+    if video_info['Troubleshoot'] == True:
+        print worldcatRecord
+        print video_info
+        print vTime
+        print ratingGuide
+    
     #001
     record.add_ordered_field(Field(tag = '001',data = "u"+ video_info['UPC']))
     #007
     record.add_ordered_field(Field(tag = '007',data = worldcatRecord['007']))
     #008
-    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vRuntime, ratingGuide['audiance'], worldcatRecord)))
+    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vTime['RunTime'], ratingGuide['audiance'], worldcatRecord)))
     #020 - Price and ISBN info
-    record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['c', video_info['Price'] ]))
-    if hasattr(worldcatRecord, 'isbn'):
-        if len(worldcatRecord['isbn']) > 0:
-            for isbn in worldcatRecord['isbn']:
-                record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['a', isbn ]))
+    record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['c', video_info['Price']]))
+    if len(worldcatRecord['isbn']) > 0:
+        for isbn in worldcatRecord['isbn']:
+            record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['a', isbn ]))
     #024 - UPC
     record.add_ordered_field(Field(tag = '024',indicators = ['1',' '],subfields = ['a', video_info['UPC'] ]))
     #035 - OCLC Number if it exists and the IMDb ID
@@ -297,18 +316,28 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     if len(worldcatRecord['dewey']) > 0:
         record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', worldcatRecord['dewey']]))
     #245 - Main Title Info
-    if sub_title(IMDBvid['title']) != '':
-        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', worldcatRecord['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
+    if IMDBvid['kind'] != 'tv series':
+        if sub_title(IMDBvid['title']) != '':
+            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', worldcatRecord['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
+        else:
+            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']), 'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
     else:
-        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']), 'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
+        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']) + '.','n', 'Season ' + str(video_info['Season']),'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
     #246 - Other names for the title
     if len(worldcatRecord['alternateName']) > 0:
         for altname in worldcatRecord['alternateName']:
             record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', altname]))
+    if IMDBvid['kind'] == 'tv series':
+        p = inflect.engine()
+        record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + '.','p', 'Season ' + p.number_to_words(video_info['Season'])]))
+        record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + '.','p', 'The ' + p.ordinal(video_info['Season']) + ' season']))
+        record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + '.','p', 'The ' + p.number_to_words(p.ordinal(video_info['Season'])) + ' season']))
+        if video_info['Season'] == len(IMDBvid['episodes']):
+            record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + ' :','b', 'The final season']))
     #264 - Production information from Worldcat
     record.add_ordered_field(Field(tag = '264',indicators = [' ','0'],subfields = set_264(worldcatRecord, str(IMDBvid['year']))))
     #300
-    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vRuntime) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
+    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
     #336
     record.add_ordered_field(Field(tag = '336',indicators = [' ',' '],subfields = ['a', 'two-dimensional moving image','2', 'rdacontent']))
     #337
@@ -329,33 +358,33 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     if len(worldcatRecord['generalNotes']) > 0:
         for gennote in worldcatRecord['generalNotes']:
             record.add_ordered_field(Field(tag = '500',indicators = [' ',' '],subfields = ['a', gennote]))
-    if 'top 250 rank' in IMDBvid:
+    if IMDBvid.get('top 250 rank') != None:
         record.add_ordered_field(Field(tag = '500',indicators = [' ',' '],subfields = ['a', 'IMDb Top 250 Movies Ranking: ' + str(IMDBvid['top 250 rank'])]))
     #505 - TV Series Episodes
     if str(IMDBvid['kind']) == 'tv series':
         record.add_ordered_field(Field(tag = '505',indicators = ['0','0'],subfields = format_505(IMDBvid['episodes'][video_info['Season']])))
     #508 & 700/710 - Crew member notes and searchable 7xx fields
-    if 'writer' in IMDBvid:
+    if IMDBvid.get('writer') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Writer',IMDBvid['writer'])]))
-    if 'producer' in IMDBvid:
+    if IMDBvid.get('producer') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Producer',IMDBvid['producer'])]))
         for mProd in IMDBvid['producer']:
             record.add_ordered_field(Field(tag = '700',indicators = ['1',' '],subfields = ['a', invert_name(mProd) + ';','e','producer.']))
-    if 'director' in IMDBvid:
+    if IMDBvid.get('director') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Director',IMDBvid['director'])]))
         for mDir in IMDBvid['director']:
             record.add_ordered_field(Field(tag = '700',indicators = ['1',' '],subfields = ['a', invert_name(mDir) + ';','e','director.']))
-    if 'editor' in IMDBvid:
+    if IMDBvid.get('editor') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Editor',IMDBvid['editor'])]))
         for mEdit in IMDBvid['editor']:
             record.add_ordered_field(Field(tag = '700',indicators = ['1',' '],subfields = ['a', invert_name(mEdit) + ';','e','editor.']))
-    if 'cinematographer' in IMDBvid:
+    if IMDBvid.get('cinematographer') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Cinematographer',IMDBvid['cinematographer'])]))
         for mCin in IMDBvid['cinematographer']:
             record.add_ordered_field(Field(tag = '700',indicators = ['1',' '],subfields = ['a', invert_name(mCin) + ';','e','cinematographer.']))
-    if 'music department' in IMDBvid:
+    if IMDBvid.get('music department') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('Musician',IMDBvid['music department'])]))
-    if 'special effects companies' in IMDBvid:
+    if IMDBvid.get('special effects companies') != None:
         record.add_ordered_field(Field(tag = '508',indicators = [' ',' '],subfields = ['a', structured_notes('SFX',IMDBvid['special effects companies'])]))
         for mFX in IMDBvid['special effects companies']:
             if len(mFX.notes) > 0:
@@ -363,7 +392,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
             else:
                 record.add_ordered_field(Field(tag = '710',indicators = ['2',' '],subfields = ['a', str(mFX) + ' (Firm)']))
     #511 & 700 - Cast Notes and Searchable 700 Fields
-    if 'cast' in IMDBvid:
+    if IMDBvid.get('cast') != None:
         record.add_ordered_field(Field(tag = '511',indicators = ['1',' '],subfields = ['a', structured_notes('Cast',IMDBvid['cast'])]))
         for index, mAct in enumerate(IMDBvid['cast']):
             if len(mAct.currentRole) > 0:
@@ -384,7 +413,11 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     if 'rating' in IMDBvid:
         record.add_ordered_field(Field(tag = '520',indicators = ['1',' '],subfields = ['a', 'IMDb Rating: ' + str(IMDBvid['rating']) + '/10']))
     #521 MPAA Rating
-    record.add_ordered_field(Field(tag = '521',indicators = ['8',' '],subfields = ['a', ratingGuide['text']]))
+    if len(worldcatRecord['contentRating']) > 0:
+        for wcRating in worldcatRecord['contentRating']:
+            record.add_ordered_field(Field(tag = '521',indicators = ['8',' '],subfields = ['a', wcRating]))
+    else:
+        record.add_ordered_field(Field(tag = '521',indicators = ['8',' '],subfields = ['a', ratingGuide['text']]))
     #538 - Technical Notes
     if len(worldcatRecord['technical']) > 0:
         record.add_ordered_field(Field(tag = '538',indicators = [' ',' '],subfields = ['a', worldcatRecord['technical']]))
@@ -423,40 +456,47 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     l[17] = '1'
     l[18] = 'i'
     record.leader = "".join(l)
-    if video_info['Quiet'] == False:
+    if video_info['Quiet'] == False or video_info['Troubleshoot'] == True:
         print record
-    MARCFile = open(FILENAMEVAR, 'a')
-    MARCFile.write(record.as_marc())
-    MARCFile.close()
+    if video_info['Troubleshoot'] == False:
+        MARCFile = open(FILENAMEVAR, 'a')
+        MARCFile.write(record.as_marc())
+        MARCFile.close()
 
-def csv_parser(file_path):
+def csv_parser(file_path, qu, ts):
+    fn = 'IMDB-' + str(time.time()) + '.mrc'
     with open(file_path, "rb" ) as theFile:
         reader = csv.DictReader(theFile, delimiter=',')
         for video_info in reader:
-            if video_info['Season'] == '':
-                video_info['Season'] = 1
-            get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], False)        
+            if ts == True:
+                print video_info
+            get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], qu, ts, fn)        
 
-def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET):
+def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'):
     IMDBinfo = IMDb()
-    version = '1.6.2'
+    version = '1.6.5'
     OCLCSymble = 'WIK'
-    FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'
-    
+
     if SEASON == '':
         SEASON == 1
+    if PRICE == '':
+        PRICE = '25.00'
+    if UPC == '':
+        UPC = str(time.time())
+
     video_info = {}
     video_info['OCLC'] = OCLC
     video_info['IMDB'] = IMDB.replace('tt', '')
     video_info['UPC'] = UPC
     video_info['Price'] = PRICE
-    video_info['Season'] = SEASON
+    video_info['Season'] = int(SEASON)
     video_info['Quiet'] = QUIET
+    video_info['Troubleshoot'] = TROUBLESHOOT
     worldcatRecord = OCLCScraper(video_info['OCLC'])
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
     if str(IMDBvid['kind']) == 'tv series':
         IMDBinfo.update(IMDBvid, 'episodes')
-
+        
     create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILENAMEVAR)
 
 if __name__== "__main__":
@@ -465,15 +505,16 @@ if __name__== "__main__":
     parser.add_argument('-f', '--File', dest='file_path', default='', action='store', help='Location of the CSV file (for batch processing) {Required if other arguments are not provided}')
     parser.add_argument('-o', '--OCLC', dest='oclc_num', default='', action='store', help='OCLC Number')
     parser.add_argument('-i', '--IMDB', dest='imdb_id', default='', action='store', help='IMDB ID {Required if --file is not provided}')
-    parser.add_argument('-u', '--UPC', dest='upc', default='', action='store', help="Item's UPC {Required if --file is not provided}")
+    parser.add_argument('-u', '--UPC', dest='upc', default=str(time.time()), action='store', help="Item's UPC {Required if --file is not provided}")
     parser.add_argument('-p', '--Price', dest='price', default='', action='store', help="Item's Price")
     parser.add_argument('-s', '--Season', dest='season', action='store', type=int, default=1, help="The season number (if a TV Show is given) [default: 1]")
     parser.add_argument('-q', '--Quiet', dest='quiet', action='store_true', default=False, help="Will suppress the script's output")
+    parser.add_argument('--troubleshoot', dest='troubleshoot', action='store_true', default=False, help="Will force output and prevent the record form generating")
     args = parser.parse_args()
     if args.file_path != '':
-        csv_parser(args.file_path)
-    elif args.imdb_id != '' or args.upc != '':
-        get_info(args.oclc_num, args.imdb_id, args.upc, args.price, args.season, args.quiet)
+        csv_parser(args.file_path, args.quiet, args.troubleshoot)
+    elif args.imdb_id != '':
+        get_info(args.oclc_num, args.imdb_id, args.upc, args.price, args.season, args.quiet, args.troubleshoot)
     else:
         parser.print_help()
   

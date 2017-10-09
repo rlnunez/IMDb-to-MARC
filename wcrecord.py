@@ -51,7 +51,8 @@ def OCLCScraper(OCLCNum):
                       'count' : 1,
                       '007' : 'vd cvaizq',
                       'GMD' : '[videorecording (DVD)]',
-                      'responsibility' : ''}
+                      'responsibility' : '',
+                      'contentRating' : ''}
     if OCLCNum == '':
       return worldcatRecord
     worldcatRecord['OCLCNumber'] = OCLCNum
@@ -95,7 +96,7 @@ def OCLCScraper(OCLCNum):
         elif rows.xpath('th/text()')[0][:-1].lower() == 'material type':
             worldcatRecord['materialType'] = rows.xpath('td/text()')[0]
         elif rows.xpath('th/text()')[0][:-1].lower() == 'description':
-            worldcatRecord['count'] = int(rows.xpath('td/text()')[0].split()[0])
+            worldcatRecord['count'] = rows.xpath('td/text()')[0].split()[0]
         elif rows.xpath('th/text()')[0][:-1].lower() == 'responsibility':
             worldcatRecord['responsibility'] = rows.xpath('td/text()')[0]
 
@@ -109,15 +110,10 @@ def OCLCScraper(OCLCNum):
         worldcatRecord['GMD'] = '[videorecording (Blu-Ray)]'
         if worldcatRecord['count'] > 1:
             worldcatRecord['itemType'] = 'Blu-ray discs'
-
     
     return worldcatRecord
 
 def htmlbr_tolist(data):
     pushlist = []
-    pushlist.append(data.xpath('text()')[0])
-    temp = data.xpath('//br/text()')
-    if len(temp) > 0:
-        for push in temp:
-            pushlist.append(push[0])
-    return pushlist
+    temp = data.xpath('text()')
+    return temp
