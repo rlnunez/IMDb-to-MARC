@@ -37,6 +37,7 @@ OCLC | IMDB | Price | UPC | Season
 * pip install lxml
 * pip install rdflib
 * pip install argparse
+* pip install inflect
 
 ## Development TODO
 
