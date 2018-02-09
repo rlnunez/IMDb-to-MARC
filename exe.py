@@ -11,141 +11,212 @@ import inflect
 from wcrecord import OCLCScraper
 from marc_lang import lanugage_lookup
 
+#returns a string with a person's last name in front
 def invert_name(data):
+    
+    #split name on " " into new array
     name_list = data['name'].split()
+    
+    #put last word of name into new string
     name = name_list[-1] + ", "
+    
+    #put the rest of the name into the string
     name_list = name_list[:-1]
-    i = 0
-    while i < len(name_list):
-        name = name + name_list[i] +" "
-        i += 1
+    name = name + " ".join(name_list)
+        
     return unidecode.unidecode(name)
 
+#if the MPAA was involved in a movie, returns the appropriate certificate
+#else returns an empty string
 def find_mpaa(data):
     vMPAA = ''
+    
+    #if certificates isn't empty
     if data.get('certificates') != None:
         for MPAA in data['certificates']:
+            
+            #if a certificate contains 'USA:'
             if 'USA:' in MPAA:
                 vMPAA = str(MPAA)
                 break
+                
     return vMPAA.lower()
 
+#returns a map with rating data for a movie or TV show
 def rating_text(data, worldcat):
-    map_rate = {'text': 'Not Rated', 'audiance' : ' '}
+    map_rate = {'text': 'Not Rated', 'audience' : ' '}
     
+    #put the correct MPAA rating into map_rate
     if data.find('g') != -1:
         map_rate['text'] = 'MPAA rating: G (General Audiences); Nothing that would offend parents for viewing by children.'
-        map_rate['audiance'] = 'g'
+        map_rate['audience'] = 'g'
     elif data.find('pg') != -1:
         map_rate['text'] = 'MPAA rating: PG (Parental Guidance Suggested); Parents urged to give "parental guidance". May contain some material parents might not like for their young children.'
-        map_rate['audiance'] = 'g'
+        map_rate['audience'] = 'g'
     elif data.find('pg-13') != -1:
         map_rate['text'] = 'MPAA rating: PG-13 (Parents Strongly Cautioned); Parents are urged to be cautious. Some material may be inappropriate for pre-teenagers.'
-        map_rate['audiance'] = 'd'
+        map_rate['audience'] = 'd'
     elif data.find('r') != -1:
         map_rate['text'] = "MPAA rating: R (Restricted); Contains some adult material. Parents are urged to learn more about the film before taking their young children with them."
-        map_rate['audiance'] = 'e'
+        map_rate['audience'] = 'e'
     elif data.find('nc-17') != -1:
         map_rate['text'] = "MPAA rating: NC-17 (Adults Only); Should not be viewed by anyone under 17"
-        map_rate['audiance'] = 'e'
+        map_rate['audience'] = 'e'
 
     wcRating = ''
+    
+    #if data is for a TV show, put the relevant info in wcRating
     if data.find('tv'):
         wcRating = data
-    
     else:
         for rating in worldcat['contentRating']:
             if rating.find('TV') or rating.find('tv'):
                 wcRating = rating.lower()
 
     if wcRating != '':
+        
+        #put the correct WorldCat rating in map_rate
         if wcRating.find('y') != -1:
             map_rate['text'] = 'This program is designed to be appropriate for all children'
-            map_rate['audiance'] = 'g'
+            map_rate['audience'] = 'g'
         if wcRating.find('y7') != -1:
             map_rate['text'] = 'This program is designed for children age 7 and above.'
-            map_rate['audiance'] = 'g'
+            map_rate['audience'] = 'g'
         if wcRating.find('g') != -1:
             map_rate['text'] = 'Most parents would find this program suitable for all ages.'
-            map_rate['audiance'] = 'g'
+            map_rate['audience'] = 'g'
         if wcRating.find('pg') != -1:
             map_rate['text'] = 'This program contains material that parents may find unsuitable for younger children.'
-            map_rate['audiance'] = 'g'
+            map_rate['audience'] = 'g'
         if wcRating.find('17') != -1:
             map_rate['text'] = 'This program contains some material that many parents would find unsuitable for children under 14 years of age.'
-            map_rate['audiance'] = 'd'
+            map_rate['audience'] = 'd'
         if wcRating.find('ma') != -1:
             map_rate['text'] = 'This program is specifically designed to be viewed by adults and therefore may be unsuitable for children under 17.'
-            map_rate['audiance'] = 'e'
+            map_rate['audience'] = 'e'
 
     return map_rate
 
+#returns a string containing the main title
 def main_title(data):
+    
+    #split full title into main title and subtitle
     main = data.split(':')
+    
+    #remove leading and trailing " "
     main = main[0].strip()
+    
     return unidecode.unidecode(main)
 
+#if there is a subtitle, returns a string containing the subtitle
+#else returns an empty string
 def sub_title(data):
+    
+    #split full title into main title and subtitle
     sub = data.split(':')
     return_sub = ''
+    
+    #if there is a subtitle
     if len(sub) > 1:
         return_sub = sub[1].strip()
+        
     return unidecode.unidecode(return_sub)
 
+#returns the given string without the first 3 or the last 2 characters
+#if the given string is shorter than 5 characters, returns an empty string
 def string_cleanup(data):
+    
+    #remove the first 3 and last 2 characters
     clean_str = str(data).encode('utf-8')
     clean_str = clean_str[3:]
     clean_str = clean_str[:-2]
+    
+    #if the string is now empty
     if clean_str == '':
         clean_str = str(data).encode('utf-8')
+        
     return clean_str
 
+#returns a string containing the current role
+#if there is no current role, returns u''
 def get_currentRole(data):
     return unidecode.unidecode(unicode(data.currentRole)) or u''
 
+#returns a string containing the notes
+#if there are no notes, returns u''
 def get_notes(data):
     return unidecode.unidecode(unicode(data.notes)) or u''
 
+#returns a string containing notes structured appropriately to their contents
 def structured_notes(start_text, data):
+    
+    #if data contains something and start_text isn't 'Cast' or 'SFX'
     if len(data) > 1 and start_text != 'Cast' and start_text != 'SFX':
         start_text = start_text + 's'
+        
     note_field = start_text + ': '
-    for people in data:
+    
+    for people in data:    
+        #if data contains cast information, structure note_field appropriately
         if start_text == 'Cast':
             note_field = note_field + unidecode.unidecode(people['name']) + ', ' + get_currentRole(people) + '; '
         else:
             note_field = note_field + unidecode.unidecode(people['name']) + '; '
+    
+    #remove the last '; ' from note_field
     note_field = note_field[:-2]
+    
     return note_field.strip()
     
+#returns a string containing all producers, writers, and directors
+#if there are none, returns an empty string
 def MARC245_c(IMDBvid):
     prod = "produced by "
     write = "written by "
     direct = "directed by "
     fin = ''
     
+    #if there are any producers
     if IMDBvid.get('producer') != None:
+        
+        #add the producers to prod
         for pp in IMDBvid['producer']:
             prod = prod + pp['name'] + ", "
+        
+        #clean prod up and put it in fin
         prod = prod[:-2]
         prod = prod.strip()
         fin = prod
         
+    #if there are any writers
     if IMDBvid.get('writer') != None:
+        
+        #add the writers to write
         for ww in IMDBvid['writer']:
             write = write + ww['name'] + ", "
+        
+        #clean write up
         write = write[:-2]
         write = write.strip()
+        
+        #put write in fin with a separator if prod is in fin
         if len(fin) > 0:
             fin = fin + " ; " + write
         else:
             fin = write
-            
+    
+    #if there are any directors
     if IMDBvid.get('director') != None:
+        
+        #add the directors to direct
         for dd in IMDBvid['director']:
             direct = direct + dd['name'] + ", "
+        
+        #clean direct up
         direct = direct[:-2]
         direct = direct.strip()
+        
+        #put direct in fin with a separator if prod or write are in fin
         if len(fin) > 0:
             fin = fin + " ; " + direct
         else:
@@ -153,17 +224,22 @@ def MARC245_c(IMDBvid):
             
     return unidecode.unidecode(fin)
 
-def set_008(date, pubyear, runTime, audiance, worldcatRecord):
+#returns a 40-character-long string with the MARC 008 formatting using the given information
+#more details can be found here: https://www.loc.gov/marc/bibliographic/bd008.html
+def set_008(date, pubyear, runTime, audience, worldcatRecord):
     MARC008 = " ".ljust(40)
     LIST008 = list(MARC008)
     date = list(date)
     pubyear = list(pubyear)
+    
+    #run time is in minutes and must be 3 digits long
     runTime = str(runTime)
     if len(runTime) == 2:
         runTime = '0' + runTime
     if len(runTime) == 1:
         runTime = '00' + runTime
     runTime = list(runTime)
+    
     LIST008[0] = date[0]
     LIST008[1] = date[1]
     LIST008[2] = date[2]
@@ -175,41 +251,56 @@ def set_008(date, pubyear, runTime, audiance, worldcatRecord):
     LIST008[8] = pubyear[1]
     LIST008[9] = pubyear[2]
     LIST008[10] = pubyear[3]
-    LIST008[15] = 'x'
-    LIST008[16] = 'x'
-    LIST008[17] = 'u'
+    
+    #if the WorldCat record has place of production information, use that
     if hasattr(worldcatRecord, 'dcid'):
         if len(worldcatRecord['dcid']) > 0:
             dcid = worldcatRecord['dcid'][0].split()
             LIST008[15] = dcid[0]
             LIST008[16] = dcid[1]
             LIST008[17] = dcid[2]
+    else:
+        LIST008[15] = 'x'
+        LIST008[16] = 'x'
+        LIST008[17] = 'u'
+            
     LIST008[18] = runTime[0]
     LIST008[19] = runTime[1]
     LIST008[20] = runTime[2]
-    LIST008[22] = audiance
+    LIST008[22] = audience
     LIST008[33] = 'v'
-    LIST008[34] = 'l'
+    
+    #if the WorldCat record has technique information, use appropriate symbol
     if hasattr(worldcatRecord, 'materialType'):
         if len(worldcatRecord['materialType']) > 0:
             if 'partial animation' in worldcatRecord['materialType'].lower():
                 LIST008[34] = 'c'
             elif 'animation' in worldcatRecord['materialType'].lower():
                 LIST008[34] = 'a'
-    LIST008[35] = 'e'
-    LIST008[36] = 'n'
-    LIST008[37] = 'g'
+    else:
+        LIST008[34] = 'l'
+    
+    #if the WorldCat record has language information, use that
     if len(worldcatRecord['language']) > 0:
         lang = lanugage_lookup(worldcatRecord['language'])
         LIST008[35] = lang[0]
         LIST008[36] = lang[1]
         LIST008[37] = lang[2]
+    else:
+        LIST008[35] = 'e'
+        LIST008[36] = 'n'
+        LIST008[37] = 'g'
+        
     LIST008[39] = 'c'
     
     return "".join(LIST008)
 
+#returns a list with the MARC 264 formatting using the given information
+#more details can be found here: https://www.loc.gov/marc/bibliographic/bd264.html
 def set_264(worldcatRecord, year):
     v264 = []
+    
+    #if the WorldCat record has place of publication information, put it in v264
     if worldcatRecord['placeOfPublication'] > 0:
         for location in worldcatRecord['placeOfPublication']:
             v264.append('a')
@@ -217,6 +308,7 @@ def set_264(worldcatRecord, year):
     else:
         v264.append('[Unknown];')
 
+    #if the WorldCat record has publisher information, put it in v264
     if worldcatRecord['publisher'] > 0:
         for pub in worldcatRecord['publisher']:
             v264.append('b')
@@ -224,19 +316,25 @@ def set_264(worldcatRecord, year):
     else:
         v264.append('[Unknown],')
 
+    #put year of publication in v264
     v264.append('c')
     v264.append(year + '.')
+    
     return v264
 
+#returns a list with the MARC 505 formatting using the given information
+#more details can be found here: https://www.loc.gov/marc/bibliographic/bd505.html
 def format_505(epi):
     v505 = []
-    i = 0
-    while i < len(epi):
-        i += 1
+    
+    #go through each episode
+    for i in range(len(epi)):
         v505.append('g')
-        v505.append('Episode ' + str(i) + ':')
+        v505.append('Episode ' + str(i + 1) + ':')
         v505.append('t')
-        if i < len(epi):
+        
+        #format end of episode entry depending on whether it's the last episode
+        if i < (len(epi) - 1):
             v505.append(unidecode.unidecode(epi[i]['title']) + ' --')
         else:
             v505.append(unidecode.unidecode(epi[i]['title']))
@@ -298,7 +396,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     #007
     record.add_ordered_field(Field(tag = '007',data = worldcatRecord['007']))
     #008
-    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vTime['RunTime'], ratingGuide['audiance'], worldcatRecord)))
+    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vTime['RunTime'], ratingGuide['audience'], worldcatRecord)))
     #020 - Price and ISBN info
     record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['c', video_info['Price']]))
     if len(worldcatRecord['isbn']) > 0:
