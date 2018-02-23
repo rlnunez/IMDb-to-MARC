@@ -43,6 +43,7 @@ OCLC | IMDB | Price | UPC | Season
 
 - [x] Commandline support
 - [x] Better batch generation support (read CSV file with headings)
+- [ ] Support for other item types
 - [ ] Integrate with LC Subject Headings and Name Authority
 - [ ] GUI
 - [ ] Boatloads of code cleanup
