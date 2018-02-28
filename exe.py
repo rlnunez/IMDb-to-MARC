@@ -1,5 +1,3 @@
-from imdb import IMDb
-from pymarc import Record, Field
 import csv
 import datetime
 import time
@@ -8,6 +6,8 @@ import unidecode
 import sys
 import argparse
 import inflect
+from imdb import IMDb
+from pymarc import Record, Field
 from wcrecord import OCLCScraper
 from marc_lang import lanugage_lookup
 
@@ -125,27 +125,26 @@ def sub_title(data):
 #returns the given string without the first 3 or the last 2 characters
 #if the given string is shorter than 5 characters, returns an empty string
 def string_cleanup(data):
-    
-    #remove the first 3 and last 2 characters
     clean_str = str(data).encode('utf-8')
-    clean_str = clean_str[3:]
-    clean_str = clean_str[:-2]
     
-    #if the string is now empty
-    if clean_str == '':
-        clean_str = str(data).encode('utf-8')
+    #if the string is long enough
+    if len(clean_str) > 5:
+        
+        #remove the first 3 and last 2 characters
+        clean_str = clean_str[3:]
+        clean_str = clean_str[:-2]
         
     return clean_str
 
 #returns a string containing the current role
 #if there is no current role, returns u''
 def get_currentRole(data):
-    return unidecode.unidecode(unicode(data.currentRole)) or u''
+    return unidecode.unidecode(data.currentRole) or u''
 
 #returns a string containing the notes
 #if there are no notes, returns u''
 def get_notes(data):
-    return unidecode.unidecode(unicode(data.notes)) or u''
+    return unidecode.unidecode(data.notes) or u''
 
 #returns a string containing notes structured appropriately to their contents
 def structured_notes(start_text, data):
@@ -301,7 +300,7 @@ def set_264(worldcatRecord, year):
     v264 = []
     
     #if the WorldCat record has place of publication information, put it in v264
-    if worldcatRecord['placeOfPublication'] > 0:
+    if len(worldcatRecord['placeOfPublication']) > 0:
         for location in worldcatRecord['placeOfPublication']:
             v264.append('a')
             v264.append(unidecode.unidecode(location).strip() + ';')
@@ -309,7 +308,7 @@ def set_264(worldcatRecord, year):
         v264.append('[Unknown];')
 
     #if the WorldCat record has publisher information, put it in v264
-    if worldcatRecord['publisher'] > 0:
+    if len(worldcatRecord['publisher']) > 0:
         for pub in worldcatRecord['publisher']:
             v264.append('b')
             v264.append(unidecode.unidecode(pub).strip() + ',')
@@ -406,12 +405,12 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
     
     #debugging code
     if video_info['Quiet'] == False or video_info['Troubleshoot'] == True:
-        print video_info['IMDB']
+        print (video_info['IMDB'])
     if video_info['Troubleshoot'] == True:
-        print worldcatRecord
-        print video_info
-        print vTime
-        print ratingGuide
+        print (worldcatRecord)
+        print (video_info)
+        print (vTime)
+        print (ratingGuide)
     
     #001 - Control number
     record.add_ordered_field(Field(tag = '001',data = "u"+ video_info['UPC']))
@@ -469,7 +468,10 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
     record.add_ordered_field(Field(tag = '264',indicators = [' ','0'],subfields = set_264(worldcatRecord, str(IMDBvid['year']))))
     
     #300 - Physical description
-    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
+    if IMDBvid.has_key('color info'):
+        record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
+    else:
+        record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) ;', 'c', '4 3/4 in.']))
     
     #336 - Content type
     record.add_ordered_field(Field(tag = '336',indicators = [' ',' '],subfields = ['a', 'two-dimensional moving image','2', 'rdacontent']))
@@ -621,7 +623,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
     
     #debugging code
     if video_info['Quiet'] == False or video_info['Troubleshoot'] == True:
-        print record
+        print (record)
     
     #if not debugging, append the MARC record to the given file
     if video_info['Troubleshoot'] == False:
@@ -643,7 +645,7 @@ def csv_parser(file_path, qu, ts):
         #parse the information from each line in the file
         for video_info in reader:
             if ts == True:
-                print video_info
+                print (video_info)
             get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], qu, ts, fn)
 
 #gathers information from WorldCat and IMDB and passes it, along with the given information, into a function that builds
@@ -676,14 +678,14 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
     
     #get episode information for TV series
-    if str(IMDBvid['kind']) == 'tv series':
+    if IMDBvid.has_key('kind') and str(IMDBvid['kind']) == 'tv series':
         IMDBinfo.update(IMDBvid, 'episodes')
         
     #create a MARC record based on all this information
     create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR)
 
 #---end--of--function--definitions----------------------------------------------------------------------------------------------------    
-    
+
 if __name__== "__main__":
     
     #read commandline arguments
