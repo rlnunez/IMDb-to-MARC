@@ -262,12 +262,12 @@ def get_runtime(IMDBvid, se):
             IMDBvid['runtimes'] = IMDBvid['runtimes'][0]
             IMDBvid['runtimes'] = IMDBvid['runtimes'].split('::')[0]
         vTime['RunTime'] = string_cleanup(IMDBvid['runtimes'])
-    
-    if IMDBvid['kind'] == 'tv series':
-        if len(IMDBvid['runtimes']) > 0:
-            vTime['RunTime'] = len(IMDBvid['episodes'][se]) * int(IMDBvid['runtimes'])
-        else:
-            vTime['RunTime'] = len(IMDBvid['episodes'][se]) * 25
+    if 'kind' in IMDBvid:
+        if str(IMDBvid['kind']) == 'tv series':
+            if len(IMDBvid['runtimes']) > 0:
+                vTime['RunTime'] = len(IMDBvid['episodes'][se]) * int(IMDBvid['runtimes'])
+            else:
+                vTime['RunTime'] = len(IMDBvid['episodes'][se]) * 25
 
     vTime['HumanTime'] = vTime['RunTime']
     if len(str(vTime['RunTime'])) > 3:
@@ -286,6 +286,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     
     if video_info['Quiet'] == False or video_info['Troubleshoot'] == True:
         print video_info['IMDB']
+        print str(IMDBvid['title'])
 
     if video_info['Troubleshoot'] == True:
         print worldcatRecord
@@ -298,7 +299,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     #007
     record.add_ordered_field(Field(tag = '007',data = worldcatRecord['007']))
     #008
-    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['year']), vTime['RunTime'], ratingGuide['audiance'], worldcatRecord)))
+    record.add_ordered_field(Field(tag = '008',data = set_008(today.strftime('%y%m%d'), str(IMDBvid['yearPublished']), vTime['RunTime'], ratingGuide['audiance'], worldcatRecord)))
     #020 - Price and ISBN info
     record.add_ordered_field(Field(tag = '020',indicators = [' ',' '],subfields = ['c', video_info['Price']]))
     if len(worldcatRecord['isbn']) > 0:
@@ -317,12 +318,12 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
         record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', worldcatRecord['dewey']]))
     #245 - Main Title Info
     if IMDBvid['kind'] != 'tv series':
-        if sub_title(IMDBvid['title']) != '':
-            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', worldcatRecord['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
+        if sub_title(str(IMDBvid['title'])) != '':
+            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(str(IMDBvid['title'])),'h', worldcatRecord['GMD'] + ' :','b', sub_title(str(IMDBvid['title'])) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
         else:
-            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']), 'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
+            record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(str(IMDBvid['title'])), 'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
     else:
-        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']) + '.','n', 'Season ' + str(video_info['Season']),'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
+        record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(str(IMDBvid['title'])) + '.','n', 'Season ' + str(video_info['Season']),'h', worldcatRecord['GMD'] + ' /','c', MARC245_c(IMDBvid) + '.' ]))
     #246 - Other names for the title
     if len(worldcatRecord['alternateName']) > 0:
         for altname in worldcatRecord['alternateName']:
@@ -427,10 +428,11 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILE
     if len(worldcatRecord['languageNotes']) > 0:
         record.add_ordered_field(Field(tag = '546',indicators = [' ',' '],subfields = ['a', worldcatRecord['languageNotes']]))
     #650 & 655 - Subject & Genre Headings
-    if 'tv series' in str(IMDBvid['kind']):
-        record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'TV shows']))
-        record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', 'Television series']))
-        record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'Television programs']))
+    if 'kind' in IMDBvid:
+        if 'tv series' in str(IMDBvid['kind']):
+            record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'TV shows']))
+            record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', 'Television series']))
+            record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'Television programs']))
     if "movie" in str(IMDBvid['kind']):
         record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'Feature films.']))
         for g in IMDBvid['genres']:
@@ -494,7 +496,9 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
     video_info['Troubleshoot'] = TROUBLESHOOT
     worldcatRecord = OCLCScraper(video_info['OCLC'])
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
-    if str(IMDBvid['kind']) == 'tv series':
+    if 'kind' not in IMDBvid:
+        IMDBvid['kind'] = 'movie'
+    if 'tv series' in str(IMDBvid['kind']):
         IMDBinfo.update(IMDBvid, 'episodes')
         
     create_record(IMDBvid, worldcatRecord, video_info, OCLCSymble, version, FILENAMEVAR)
