@@ -32,14 +32,14 @@ def OCLCScraper(OCLCNum):
                       'publisher' : '',
                       'yearPublished' : '',
                       'itemType' : 'DVD',
-                      'summery' : '',
+                      'summary' : '',
                       'genre' : '',
                       'languageNotes' : '',
                       'OCLCNumber' : '',
                       'generalNotes' : '',
                       'language' : '',
                       'contentRating' : '',
-                      'subjects' : '',
+                      'subjects' : [],
                       'dcid' : '',
                       'isbn' : '',
                       'technical' : '',
@@ -51,8 +51,7 @@ def OCLCScraper(OCLCNum):
                       'count' : 1,
                       '007' : 'vd cvaizq',
                       'GMD' : '[videorecording (DVD)]',
-                      'responsibility' : '',
-                      'contentRating' : ''}
+                      'responsibility' : ''}
     if OCLCNum == '':
       return worldcatRecord
     worldcatRecord['OCLCNumber'] = OCLCNum
@@ -60,7 +59,7 @@ def OCLCScraper(OCLCNum):
     r = requests.get(requestURL, headers=headers)
     tree = html.fromstring(r.content)
     worldcatRecord['title'] = getBibframe(OCLCNum,'name')[0]
-    worldcatRecord['summery'] = getBibframe(OCLCNum,'description')
+    worldcatRecord['summary'] = getBibframe(OCLCNum,'description')
     PubInfo = tree.xpath('//td[@id="bib-publisher-cell"]/text()')[0]
     worldcatRecord['itemType'] = tree.xpath('//span[@class="itemType"]/text()')[0]
     worldcatRecord['generalNotes'] = tree.xpath('//tr[@class="details-notes"]/td/text()')
@@ -114,6 +113,5 @@ def OCLCScraper(OCLCNum):
     return worldcatRecord
 
 def htmlbr_tolist(data):
-    pushlist = []
     temp = data.xpath('text()')
     return temp

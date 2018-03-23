@@ -2,7 +2,6 @@ import csv
 import datetime
 import time
 import string
-import unidecode
 import sys
 import argparse
 import inflect
@@ -24,7 +23,7 @@ def invert_name(data):
     name_list = name_list[:-1]
     name = name + " ".join(name_list)
         
-    return unidecode.unidecode(name)
+    return name
 
 #if the MPAA was involved in a movie, returns the appropriate certificate
 #else returns an empty string
@@ -106,7 +105,7 @@ def main_title(data):
     #remove leading and trailing " "
     main = main[0].strip()
     
-    return unidecode.unidecode(main)
+    return main
 
 #if there is a subtitle, returns a string containing the subtitle
 #else returns an empty string
@@ -120,7 +119,7 @@ def sub_title(data):
     if len(sub) > 1:
         return_sub = sub[1].strip()
         
-    return unidecode.unidecode(return_sub)
+    return return_sub
 
 #returns the given string without the first 3 or the last 2 characters
 #if the given string is shorter than 5 characters, returns an empty string
@@ -137,14 +136,14 @@ def string_cleanup(data):
     return clean_str
 
 #returns a string containing the current role
-#if there is no current role, returns u''
+#if there is no current role, returns an empty string
 def get_currentRole(data):
-    return unidecode.unidecode(data.currentRole) or u''
+    return str(data.currentRole) or ''
 
 #returns a string containing the notes
-#if there are no notes, returns u''
+#if there are no notes, returns an empty string
 def get_notes(data):
-    return unidecode.unidecode(data.notes) or u''
+    return str(data.notes) or ''
 
 #returns a string containing notes structured appropriately to their contents
 def structured_notes(start_text, data):
@@ -158,9 +157,9 @@ def structured_notes(start_text, data):
     for people in data:    
         #if data contains cast information, structure note_field appropriately
         if start_text == 'Cast':
-            note_field = note_field + unidecode.unidecode(people['name']) + ', ' + get_currentRole(people) + '; '
+            note_field = note_field + str(people['name']) + ', ' + get_currentRole(people) + '; '
         else:
-            note_field = note_field + unidecode.unidecode(people['name']) + '; '
+            note_field = note_field + str(people['name']) + '; '
     
     #remove the last '; ' from note_field
     note_field = note_field[:-2]
@@ -221,7 +220,7 @@ def MARC245_c(IMDBvid):
         else:
             fin = direct
             
-    return unidecode.unidecode(fin)
+    return fin
 
 #returns a 40-character-long string with the MARC 008 formatting using the given information
 #more details can be found here: https://www.loc.gov/marc/bibliographic/bd008.html
@@ -303,7 +302,7 @@ def set_264(worldcatRecord, year):
     if len(worldcatRecord['placeOfPublication']) > 0:
         for location in worldcatRecord['placeOfPublication']:
             v264.append('a')
-            v264.append(unidecode.unidecode(location).strip() + ';')
+            v264.append(location.strip() + ';')
     else:
         v264.append('[Unknown];')
 
@@ -311,7 +310,7 @@ def set_264(worldcatRecord, year):
     if len(worldcatRecord['publisher']) > 0:
         for pub in worldcatRecord['publisher']:
             v264.append('b')
-            v264.append(unidecode.unidecode(pub).strip() + ',')
+            v264.append(pub.strip() + ',')
     else:
         v264.append('[Unknown],')
 
@@ -334,9 +333,9 @@ def format_505(epi):
         
         #format end of episode entry depending on whether it's the last episode
         if i < (len(epi) - 1):
-            v505.append(unidecode.unidecode(epi[i]['title']) + ' --')
+            v505.append(epi[i]['title'] + ' --')
         else:
-            v505.append(unidecode.unidecode(epi[i]['title']))
+            v505.append(epi[i]['title'])
 
     return v505
 
@@ -374,7 +373,7 @@ def get_runtime(IMDBvid, se):
         vTime['RunTime'] = string_cleanup(IMDBvid['runtimes'])
     
     #if the record is for a TV series
-    if IMDBvid['kind'] == 'tv series':
+    if IMDBvid.get('kind') == 'tv series':
         
         #if IMDB has runtime information, use the number of episodes times the length of one episode as the runtime
         #else assume the length of one episode is 25 minutes and multiply it by the number of episodes for total runtime
@@ -443,7 +442,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
         record.add_ordered_field(Field(tag = '082',indicators = ['0','0'],subfields = ['a', worldcatRecord['dewey']]))
         
     #245 - Main Title Info
-    if IMDBvid['kind'] != 'tv series':
+    if IMDBvid.get('kind') != 'tv series':
         if sub_title(IMDBvid['title']) != '':
             record.add_ordered_field(Field(tag = '245',indicators = ['1','0'],subfields = ['a', main_title(IMDBvid['title']),'h', worldcatRecord['GMD'] + ' :','b', sub_title(IMDBvid['title']) + ' /' , 'c', MARC245_c(IMDBvid) + '.' ]))
         else:
@@ -456,7 +455,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
         for altname in worldcatRecord['alternateName']:
             record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', altname]))
             
-    if IMDBvid['kind'] == 'tv series':
+    if IMDBvid.get('kind') == 'tv series':
         p = inflect.engine()
         record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + '.','p', 'Season ' + p.number_to_words(video_info['Season'])]))
         record.add_ordered_field(Field(tag = '246',indicators = ['3','1'],subfields = ['a', main_title(IMDBvid['title']) + '.','p', 'The ' + p.ordinal(video_info['Season']) + ' season']))
@@ -468,10 +467,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
     record.add_ordered_field(Field(tag = '264',indicators = [' ','0'],subfields = set_264(worldcatRecord, str(IMDBvid['year']))))
     
     #300 - Physical description
-    if IMDBvid.has_key('color info'):
-        record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) :','b', 'sound, ' + string_cleanup(str(IMDBvid['color info'])).lower() + ';' , 'c', '4 3/4 in.']))
-    else:
-        record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) ;', 'c', '4 3/4 in.']))
+    record.add_ordered_field(Field(tag = '300',indicators = [' ',' '],subfields = ['a', str(worldcatRecord['count']) + ' ' + worldcatRecord['itemType'] + ' (' + str(vTime['HumanTime']) + ' minutes) :','b', 'sd., col.;' , 'c', '4 3/4 in.']))
     
     #336 - Content type
     record.add_ordered_field(Field(tag = '336',indicators = [' ',' '],subfields = ['a', 'two-dimensional moving image','2', 'rdacontent']))
@@ -505,7 +501,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
         record.add_ordered_field(Field(tag = '500',indicators = [' ',' '],subfields = ['a', 'IMDb Top 250 Movies Ranking: ' + str(IMDBvid['top 250 rank'])]))
         
     #505 - TV Series Episodes
-    if str(IMDBvid['kind']) == 'tv series':
+    if str(IMDBvid.get('kind')) == 'tv series':
         record.add_ordered_field(Field(tag = '505',indicators = ['0','0'],subfields = format_505(IMDBvid['episodes'][video_info['Season']])))
         
     #508 & 700/710 - Crew member notes and searchable 7xx fields
@@ -586,12 +582,12 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
         record.add_ordered_field(Field(tag = '546',indicators = [' ',' '],subfields = ['a', worldcatRecord['languageNotes']]))
         
     #650 & 655 - Subject & Genre Headings
-    if 'tv series' in str(IMDBvid['kind']):
+    if 'tv series' in str(IMDBvid.get('kind')):
         record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'TV shows']))
         record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', 'Television series']))
         record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'Television programs']))
     
-    if "movie" in str(IMDBvid['kind']):
+    if "movie" in str(IMDBvid.get('kind')):
         record.add_ordered_field(Field(tag = '655',indicators = [' ','0'],subfields = ['a', 'Feature films.']))
         for g in IMDBvid['genres']:
             if g == 'Sci-Fi':
@@ -606,7 +602,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
             record.add_ordered_field(Field(tag = '650',indicators = [' ','0'],subfields = ['a', sh]))
             
     #856 - Artwork and IMDb Links
-    record.add_ordered_field(Field(tag = '856',indicators = ['4',' '],subfields = ['u', IMDBvid['full-size cover url'], 'y', 'Artwork of ' + unidecode.unidecode(IMDBvid['title'])]))
+    record.add_ordered_field(Field(tag = '856',indicators = ['4',' '],subfields = ['u', IMDBvid['full-size cover url'], 'y', 'Artwork of ' + IMDBvid['title']]))
     record.add_ordered_field(Field(tag = '856',indicators = ['4',' '],subfields = ['u', 'http://www.imdb.com/title/tt' + IMDBvid.movieID, 'y', 'IMDb Link']))
     
     #905 - Generator Notes
@@ -627,7 +623,7 @@ def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILE
     
     #if not debugging, append the MARC record to the given file
     if video_info['Troubleshoot'] == False:
-        MARCFile = open(FILENAMEVAR, 'a')
+        MARCFile = open(FILENAMEVAR, 'ab')
         MARCFile.write(record.as_marc())
         MARCFile.close()
 
@@ -678,8 +674,9 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
     
     #get episode information for TV series
-    if IMDBvid.has_key('kind') and str(IMDBvid['kind']) == 'tv series':
+    if str(IMDBvid.get('kind')) == 'tv series':
         IMDBinfo.update(IMDBvid, 'episodes')
+
         
     #create a MARC record based on all this information
     create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR)
