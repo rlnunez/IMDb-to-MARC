@@ -6,7 +6,14 @@ from tkinter import filedialog
 
 #define the action of the single record submit button
 def singleSubmit(*args):
-    writeToSingleOutput("You pressed the button!")
+    if(imdbID.get() == '' or upcNum.get() == ''):
+        writeToSingleOutput("Both IMDb ID and UPC number are required to create a MARC record.")
+    elif(edition.get() == ''):
+        writeToSingleOutput("Generating file...")
+        writeToSingleOutput("File generated: " + get_info(oclcNum.get(), imdbID.get(), upcNum.get(), price.get(), 1, True, False))
+    else:
+        writeToSingleOutput("Generating file...")
+        writeToSingleOutput("File generated: " + get_info(oclcNum.get(), imdbID.get(), upcNum.get(), price.get(), int(edition.get()), True, False))
 
 def writeToSingleOutput(msg):
     singleOutput['state'] = 'normal'
@@ -17,7 +24,13 @@ def selectFile(*args):
     filepath.set(filedialog.askopenfilename())
 
 def multipleSubmit(*args):
-    writeToMultipleOutput("You pressed the button!")
+    if(filepath.get() == ''):
+        writeToMultipleOutput("Please select a file.")
+    #elif(filepath.get()[-3:] != "csv"):
+        #writeToMultipleOutput("Please select a CSV file.")
+    else:
+        writeToMultipleOutput("Generating files...")
+        writeToMultipleOutput(csv_parser(filepath.get(), True, False))
 
 def writeToMultipleOutput(msg):
     multipleOutput['state'] = 'normal'
@@ -31,8 +44,6 @@ root.title("IMDb to MARC")
 #put a base frame into the root window
 mainframe = ttk.Frame(root, padding=(12,12,12,12))
 mainframe.grid(column=0, row=0, sticky=(N,W,E,S))
-mainframe.columnconfigure(0, weight=1)
-mainframe.rowconfigure(0, weight=1)
 
 #put tabs in the base frame
 tabs = ttk.Notebook(mainframe)
@@ -40,9 +51,7 @@ singleRecord = ttk.Frame(tabs)
 multipleRecords = ttk.Frame(tabs)
 tabs.add(singleRecord, text = "Single")
 tabs.add(multipleRecords, text = "Multiple")
-tabs.grid(column=0, row=0, sticky=(N,S))
-tabs.columnconfigure(0, weight=1)
-tabs.rowconfigure(0, weight=1)
+tabs.grid(column=0, row=0, sticky=(N,S,W,E))
 
 #create oclc number entry box
 oclcNum = StringVar()
@@ -97,7 +106,7 @@ fileLabel = ttk.Label(multipleRecords, text="File")
 fileEntry = ttk.Entry(multipleRecords, textvariable=filepath)
 fileButton = ttk.Button(multipleRecords, text="Browse...", command=selectFile)
 fileLabel.grid(column=0, row=0, sticky=(N,S))
-fileEntry.grid(column=0, row=1, sticky=(N,S,W))
+fileEntry.grid(column=0, row=1, sticky=(N,S,W,E))
 fileButton.grid(column=1, row=1, sticky=(N,S,W))
 
 #create multipe files submit button
@@ -111,6 +120,16 @@ multipleOutput.grid(column=0, row=3, sticky=(N,S,E,W), columnspan=3)
 multipleOutputScroll = ttk.Scrollbar(multipleRecords, orient=VERTICAL, command=multipleOutput.yview)
 multipleOutput['yscrollcommand'] = multipleOutputScroll.set
 multipleOutputScroll.grid(column=4, row=3, sticky=(N,S,W))
+
+#set up window resizing
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+mainframe.columnconfigure(0, weight=1)
+mainframe.rowconfigure(0, weight=1)
+singleRecord.columnconfigure(0, weight=1)
+singleRecord.rowconfigure(11, weight=1)
+multipleRecords.columnconfigure(0, weight=1)
+multipleRecords.rowconfigure(3, weight=1)
 
 #run the gui
 root.mainloop()

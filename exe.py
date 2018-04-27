@@ -7,7 +7,7 @@ import argparse
 import inflect
 from imdb import IMDb
 from pymarc import Record, Field
-from wcrecord import OCLCScraper
+from wcrecord import WorldCat
 from marc_lang import lanugage_lookup
 
 #returns a string with a person's last name in front
@@ -643,6 +643,8 @@ def csv_parser(file_path, qu, ts):
             if ts == True:
                 print (video_info)
             get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], qu, ts, fn)
+    
+    return fn
 
 #gathers information from WorldCat and IMDB and passes it, along with the given information, into a function that builds
 #a MARC record and writes it to a file
@@ -670,7 +672,7 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
     video_info['Troubleshoot'] = TROUBLESHOOT
     
     #get WorldCat and IMDB information
-    worldcatRecord = OCLCScraper(video_info['OCLC'])
+    worldcatRecord = WorldCat.OCLCScraper(WorldCat, video_info['OCLC'])
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
     
     #get episode information for TV series
@@ -680,6 +682,8 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
         
     #create a MARC record based on all this information
     create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR)
+
+    return FILENAMEVAR
 
 #---end--of--function--definitions----------------------------------------------------------------------------------------------------    
 
