@@ -9,6 +9,7 @@ from imdb import IMDb
 from pymarc import Record, Field
 from wcrecord import WorldCat
 from marc_lang import lanugage_lookup
+from goodreads import get_goodreads_info
 
 #returns a string with a person's last name in front
 def invert_name(data):
@@ -642,13 +643,13 @@ def csv_parser(file_path, qu, ts):
         for video_info in reader:
             if ts == True:
                 print (video_info)
-            get_info(video_info['OCLC'], video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], qu, ts, fn)
+            get_info(video_info['OCLC'], '', '', video_info['IMDB'], video_info['UPC'], video_info['Price'], video_info['Season'], qu, ts, fn)
     
     return fn
 
 #gathers information from WorldCat and IMDB and passes it, along with the given information, into a function that builds
 #a MARC record and writes it to a file
-def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'):
+def get_info(OCLC, ISBN, title, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 'IMDB-' + str(time.time()) + '.mrc'):
     IMDBinfo = IMDb()
     version = '1.6.5'
     OCLCSymbol = 'WIK'
@@ -674,6 +675,9 @@ def get_info(OCLC, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, FILENAMEVAR = 
     #get WorldCat and IMDB information
     worldcatRecord = WorldCat.OCLCScraper(WorldCat, video_info['OCLC'])
     IMDBvid = IMDBinfo.get_movie(video_info['IMDB'])
+
+    #get Goodreads information
+    goodreads = get_goodreads_info(ISBN, title)
     
     #get episode information for TV series
     if str(IMDBvid.get('kind')) == 'tv series':
@@ -693,6 +697,8 @@ if __name__== "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--File', dest='file_path', default='', action='store', help='Location of the CSV file (for batch processing) {Required if other arguments are not provided}')
     parser.add_argument('-o', '--OCLC', dest='oclc_num', default='', action='store', help='OCLC Number')
+    parser.add_argument('-n', '--ISBN', dest='isbn', default='', action='store', help='ISBN number {Required to get Goodreads information if --title is not provided}')
+    parser.add_argument('-t', '--Title', dest='title', default='', action='store', help='Title {Required to get Goodreads information if --isbn is not provided')
     parser.add_argument('-i', '--IMDB', dest='imdb_id', default='', action='store', help='IMDB ID {Required if --file is not provided}')
     parser.add_argument('-u', '--UPC', dest='upc', default=str(time.time()), action='store', help="Item's UPC {Required if --file is not provided}")
     parser.add_argument('-p', '--Price', dest='price', default='', action='store', help="Item's Price")
@@ -706,7 +712,7 @@ if __name__== "__main__":
     if args.file_path != '':
         csv_parser(args.file_path, args.quiet, args.troubleshoot)
     elif args.imdb_id != '':
-        get_info(args.oclc_num, args.imdb_id, args.upc, args.price, args.season, args.quiet, args.troubleshoot)
+        get_info(args.oclc_num, args.isbn, args.title, args.imdb_id, args.upc, args.price, args.season, args.quiet, args.troubleshoot)
     else:
         parser.print_help()
   
