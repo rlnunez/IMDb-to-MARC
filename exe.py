@@ -393,7 +393,7 @@ def get_runtime(IMDBvid, se):
 
 #creates a MARC record using information from IMDB and WorldCat and appends it to the given file
 #more information on MARC records can be found here: https://www.loc.gov/marc/bibliographic/
-def create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR):
+def create_record(goodreadsInfo, IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR):
     today = datetime.date.today()
     record = Record()
     vTime = get_runtime(IMDBvid,video_info['Season'])
@@ -685,7 +685,7 @@ def get_info(OCLC, ISBN, title, IMDB, UPC, PRICE, SEASON, QUIET, TROUBLESHOOT, F
 
         
     #create a MARC record based on all this information
-    create_record(IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR)
+    create_record(goodreads, IMDBvid, worldcatRecord, video_info, OCLCSymbol, version, FILENAMEVAR)
 
     return FILENAMEVAR
 
